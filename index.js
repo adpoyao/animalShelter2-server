@@ -4,13 +4,25 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 
+const Queue = require('./queue');
 const {PORT, CLIENT_ORIGIN} = require('./config');
 const {dbConnect} = require('./db-mongoose');
 // const {dbConnect} = require('./db-knex');
 
 const app = express();
 
-const catShelter = [{
+//START: Animal Queue Database
+
+function growQueue(animals, shelter){
+  for(let i=0; i<animals.length; i++){
+    shelter.enqueue(animals[i]);
+  }
+}
+
+const catShelter = new Queue();
+const dogShelter = new Queue();
+
+const cats = [{
   imageURL:'https://assets3.thrillist.com/v1/image/2622128/size/tmg-slideshow_l.jpg',
   imageDescription: 'Orange bengal cat with black stripes lounging on concrete.',
   name: 'Fluffy',
@@ -36,7 +48,7 @@ const catShelter = [{
   breed: 'Mutt',
   story: 'Perfect crazy cat lady starter kit'
 }];
-const dogShelter = [{
+const dogs = [{
   imageURL: 'http://www.dogster.com/wp-content/uploads/2015/05/Cute%20dog%20listening%20to%20music%201_1.jpg',
   imageDescription: 'A smiling golden-brown golden retreiver listening to music.',
   name: 'Zeus',
@@ -64,6 +76,10 @@ const dogShelter = [{
   story: 'Loves to deliver (and destroy) your daily mails!'
 }];
 
+growQueue(cats, catShelter);
+growQueue(dogs, dogShelter);
+//End: Animal Queue Database
+
 app.use(
   morgan(process.env.NODE_ENV === 'production' ? 'common' : 'dev', {
     skip: (req, res) => process.env.NODE_ENV === 'test'
@@ -77,20 +93,26 @@ app.use(
 );
 
 app.get('/api/cat', (req, res) => {
-  res.json(catShelter[0]);
+  const cat = catShelter.peek();
+  res.json(cat);
 });
 
 app.get('/api/dog', (req, res) => {
-  res.json(dogShelter[0]);
+  const dog = dogShelter.peek();
+  res.json(dog);
 });
 
 app.delete('/api/cat', (req, res) => {
-  catShelter.shift();
+  const cat = catShelter.dequeue();
+  //So there is always animals to adopt
+  catShelter.enqueue(cat);
   res.status(204).end();
 });
 
 app.delete('/api/dog', (req, res) => {
-  dogShelter.shift();
+  const dog = dogShelter.dequeue();
+  //So there is always animals to adopt
+  dogShelter.enqueue(dog);
   res.status(204).end();
 });
 
